@@ -7,6 +7,7 @@ import discord4j.core.event.ReactiveEventAdapter;
 import discord4j.core.event.domain.interaction.ButtonInteractionEvent;
 import discord4j.core.event.domain.interaction.SelectMenuInteractionEvent;
 import discord4j.core.object.component.*;
+import discord4j.core.object.entity.Member;
 import discord4j.core.object.entity.Message;
 import discord4j.core.object.entity.User;
 import discord4j.core.spec.MessageCreateSpec;
@@ -29,8 +30,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class RequestMessage extends ReactiveEventAdapter {
-    private Plugin p;
-    private Bot b;
+    private final Plugin p;
+    private final Bot b;
     public RequestMessage(Plugin p, Bot b) {
         this.p = p;
         this.b = b;
@@ -98,7 +99,7 @@ public class RequestMessage extends ReactiveEventAdapter {
         return editMessageRejected(message, "Not registered (Generic)");
     }
 
-    protected Mono<Tuple2<Request.Platform, User>> parseRequestMessage(Message message) {
+    protected Mono<Tuple2<Request.Platform, Member>> parseRequestMessage(Message message) {
         //TextDisplay identifierComponent;
         TextDisplay discordComponent;
         String minecraft;
@@ -118,11 +119,11 @@ public class RequestMessage extends ReactiveEventAdapter {
 
         p.getLogger().info(minecraft);
 
-        Mono<Tuple2<Request.Platform, User>> request; {
+        Mono<Tuple2<Request.Platform, Member>> request; {
             Mono<Request.Platform> platform;
             if (!isJava) {
                 // FIX: ENDLESS?
-                platform = Request.Platform.tryGetBedrock(p, minecraft, false).cast(Request.Platform.class);
+                platform = Request.Platform.tryGetBedrock(p, minecraft).cast(Request.Platform.class);
             } else {
                 platform = Request.Platform.tryGetJava(p, minecraft).cast(Request.Platform.class);
             }
@@ -131,31 +132,37 @@ public class RequestMessage extends ReactiveEventAdapter {
                     platform,
                     b.client.getUserById(
                             Snowflake.of(discordComponent.getContent().replaceAll("[^0-9]", ""))
-                    )
+                    ).flatMap(u -> u.asMember(b.guild.getId()))
             );
         }
 
         return request;
     }
 
-    private static MessageCreateSpec ACCEPTED_MESSAGE = MessageCreateSpec.builder().content("You have been accepted onto the server!").build();
+    private static final MessageCreateSpec ACCEPTED_MESSAGE = MessageCreateSpec.builder().content("You have been accepted onto the server!").build();
     protected Mono<Void> acceptButton(ButtonInteractionEvent e) {
         if (e.getMessage().isEmpty()) { return Mono.error(new Exception("no message attributed?")); }
 
         return editMessageAccepted(e.getMessage().get())
-                .then(parseRequestMessage(e.getMessage().get()).flatMap(t -> {
-                    p.getServer().getScheduler().runTask(p, () -> t.getT1().player().setWhitelisted(true));
-                    return t.getT2().getPrivateChannel()
-                            .flatMap(c -> c.createMessage(ACCEPTED_MESSAGE))
-                            .onErrorMap(Exceptions.UnreachableUserException::new);
-                }))
+                .then(parseRequestMessage(e.getMessage().get())
+                        .flatMap(t -> {
+                            if (b.whitelistedRole != null) {
+                                return t.getT2().addRole(b.whitelistedRole).then(Mono.just(t));
+                            } else { return Mono.just(t); }
+                        })
+                        .flatMap(t -> {
+                            p.getServer().getScheduler().runTask(p, () -> t.getT1().player().setWhitelisted(true));
+                            return t.getT2().getPrivateChannel()
+                                    .flatMap(c -> c.createMessage(ACCEPTED_MESSAGE))
+                                    .onErrorMap(Exceptions.UnreachableUserException::new);
+                        }))
                 //.doOnError(ex -> e.createFollowup("Failed: " +ex.getMessage()).withEphemeral(true))
                 .then(e.reply("Accepted!").withEphemeral(true))
                 .onErrorResume(Exceptions.UnreachableUserException.class, ex -> e.reply("Couldn't DM user!"))
                 .onErrorResume(ex -> e.reply("Error :( : " + ex.getMessage()));
     }
 
-    private static MessageCreateSpec GENERIC_REJECTED_MESSAGE = MessageCreateSpec.builder().content("Rejected due to not being registered with SU (Or Other)").build();
+    private static final MessageCreateSpec GENERIC_REJECTED_MESSAGE = MessageCreateSpec.builder().content("Rejected due to not being registered with SU (Or Other)").build();
     protected Mono<Void> denyButton(ButtonInteractionEvent e) {
         if (e.getMessage().isEmpty()) { return Mono.error(new Exception("no message attributed?")); }
 

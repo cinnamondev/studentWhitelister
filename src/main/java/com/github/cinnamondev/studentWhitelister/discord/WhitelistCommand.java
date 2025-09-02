@@ -15,7 +15,7 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 
 public class WhitelistCommand extends ReactiveEventAdapter {
-    private StudentWhitelister p;
+    private final StudentWhitelister p;
     public WhitelistCommand(StudentWhitelister p) {
         this.p = p;
     }
@@ -77,7 +77,7 @@ public class WhitelistCommand extends ReactiveEventAdapter {
 
         Mono<Request.Platform> platform;
         if (!isJava) {
-            platform = Request.Platform.tryGetBedrock(p, platformString, platformString.startsWith(PlayerProvider.getFloodgatePrefix())).cast(Request.Platform.class);
+            platform = Request.Platform.tryGetBedrock(p, platformString).cast(Request.Platform.class);
         } else {
             platform = Request.Platform.tryGetJava(p, platformString).cast(Request.Platform.class);
         }

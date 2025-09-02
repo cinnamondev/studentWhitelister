@@ -18,6 +18,7 @@ import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.bukkit.block.Bed;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -25,6 +26,7 @@ import org.geysermc.floodgate.api.FloodgateApi;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -54,23 +56,22 @@ public class PlayerListener implements Listener {
             if (!PlayerProvider.HAS_FLOODGATE) { // weird state
                 e.getConnection().disconnect(Component.text("bedrock player connected, but we dont have access to floodgate..."));
                 return;
-            } else {
-                var future = BedrockForms.showJoinForm(p, // show FORM.
-                        FloodgateApi.getInstance().getPlayer(e.getConnection().getProfile().getId()),
-                        e.getConnection()
-                );
-                activePlayers.put(e.getConnection(), future);
             }
-        } else {
-            // request = ...
-            activePlayers.put(e.getConnection(), new CompletableFuture<>());
-            e.getConnection().getAudience().showDialog(dialog);
         }
+        // request = ...
+        activePlayers.put(e.getConnection(), new CompletableFuture<>());
+        e.getConnection().getAudience().showDialog(dialog);
+
 
         int attempts = 0;
         while (attempts <= 3) {
             try {
                 attempts++;
+                // NOTE: bedrocks loop is quite different - we shouldnt expect to
+                // leave the following line until we get a successful result or the user has
+                // cancelled the operation / timed out. all attempt handling is enclosed within
+                // BedrockForms :) it also means we dont need to worry about these other exceptions.
+                // I HOPE.
                 Request completedRequest = activePlayers.get(e.getConnection()) // get request from pairs-- it might have been swapped out in a previous attempt
                         .get(10, TimeUnit.MINUTES);
                 p.bot.makeWhitelistRequest(completedRequest) // non blocking, if we have an issue on our part then uh. Log it.
@@ -98,10 +99,9 @@ public class PlayerListener implements Listener {
                     ///// BODGE ALERT!!
                     /// ///////////////////
                     // generic handler retry dialog, will only let them go back to the normal track if completed succesfully.
-                    // TODO: bedrock error handling form?
                     activePlayers.put(e.getConnection(), new CompletableFuture<>());
                     e.getConnection().getAudience().showDialog(
-                            Dialogs.userErrorDialog(ex.getCause(), attempts < 3) // on the 4th one the only available option should be to DC
+                            Dialogs.userErrorDialog(ex, attempts < 3) // on the 4th one the only available option should be to DC
                             // (cancelled dialog exception :))
                     );
                 }
@@ -110,7 +110,6 @@ public class PlayerListener implements Listener {
                 return;
             } catch (Exception ex) {
                 // generic handler retry dialog, will only let them go back to the normal track if completed succesfully.
-                // TODO: bedrock error handling form?
                 activePlayers.put(e.getConnection(), new CompletableFuture<>());
                 e.getConnection().getAudience().showDialog(
                         Dialogs.userErrorDialog(ex, attempts < 3) // on the 4th one the only available option should be to DC
@@ -120,18 +119,9 @@ public class PlayerListener implements Listener {
         }
 
         activePlayers.remove(e.getConnection());
-
-        if ((!PlayerProvider.HAS_FLOODGATE) && e.getConnection().getProfile().getName().startsWith(".")) { // no floodgate but geyser player, this is not entirely accurate
-            e.getConnection().disconnect(Component.text("bedrock player connected, but floodgate is not available."));
-            return;
-        }
-
         e.getConnection().disconnect(StudentWhitelister.CANCELLATION_MESSAGE);
     }
 
-    private void genericErrorHandler(Throwable throwable) {
-
-    }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void showFormIfUnwhitelisted(ProfileWhitelistVerifyEvent e) {
@@ -163,7 +153,7 @@ public class PlayerListener implements Listener {
         } else if (e.getCommonConnection() instanceof PlayerGameConnection connection) { // future support
             p.getLogger().info("attempted whitelist attempt in game phase...");
             profile = connection.getPlayer().getPlayerProfile();
-            audience = (Audience) connection.getPlayer();
+            audience = connection.getPlayer();
             //return;
         } else { return; } // we shouldnt get here..
 
@@ -176,7 +166,6 @@ public class PlayerListener implements Listener {
                         return f;
                     }
             );
-            return;
         } else if (key.equals(Dialogs.RETRY_BUTTON_KEY)) { // player has hit 'retry'
             audience.closeDialog();
             audience.showDialog(dialog);
@@ -185,14 +174,26 @@ public class PlayerListener implements Listener {
             String discordStr = r.getText("discord");
             String identifierStr = r.getText("identifier");
 
+
             var future = activePlayers.get(e.getCommonConnection());
 
             p.bot.getGuildMemberByUsername(discordStr)
-                    .map(m -> new Request(
-                            new Request.Platform.Java(p.getServer().getOfflinePlayer(profile.getId())),
-                            m,
-                            Request.Identifier.parseFrom(identifierStr)
-                    )).subscribe(
+                    .map(m -> {
+                        Request.Platform platform;
+                        // SO it turned out i don't have to do all the other stuff with BedrockForms! it just...
+                        // does it for you... SMH....
+                        if (PlayerProvider.HAS_FLOODGATE && FloodgateApi.getInstance().isFloodgatePlayer(profile.getId())) {
+                            var gamertag = FloodgateApi.getInstance().getPlayer(profile.getId()).getUsername();
+                            platform = new Request.Platform.Bedrock(PlayerProvider.profileToPlayer(profile), gamertag);
+                        } else {
+                            platform = new Request.Platform.Java(p.getServer().getOfflinePlayer(profile.getId()));
+                        }
+                        return new Request(
+                                platform,
+                                m,
+                                Request.Identifier.parseFrom(identifierStr)
+                        );
+                    }).subscribe(
                             future::complete,
                             future::completeExceptionally
                     );

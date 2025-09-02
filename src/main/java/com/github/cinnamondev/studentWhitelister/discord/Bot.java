@@ -18,11 +18,11 @@ import java.time.Duration;
 
 public class Bot {
     public GatewayDiscordClient client;
-    private final Guild guild;
+    public final Guild guild;
     private final TextChannel channel;
-    private Snowflake whitelistedRole = null;
-    private RequestMessage requestMessage;
-    private WhitelistCommand command;
+    public Snowflake whitelistedRole = null;
+    private final RequestMessage requestMessage;
+    private final WhitelistCommand command;
     protected Bot(StudentWhitelister p, GatewayDiscordClient client, Guild guild, TextChannel channel, Snowflake whitelistedRole) {
         this.client = client;
         this.guild = guild;

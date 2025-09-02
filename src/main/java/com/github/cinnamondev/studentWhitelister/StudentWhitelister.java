@@ -1,6 +1,7 @@
 package com.github.cinnamondev.studentWhitelister;
 
 import com.github.cinnamondev.studentWhitelister.discord.Bot;
+import com.github.cinnamondev.studentWhitelister.util.PlayerProvider;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -18,7 +19,7 @@ import java.net.URI;
 import java.text.MessageFormat;
 
 public final class StudentWhitelister extends JavaPlugin {
-    protected PlayerListener whitelistWatcher;
+    private PlayerListener whitelistWatcher;
 
     public Bot bot;
     // These values are initialized in the bootstrapper.
@@ -60,6 +61,7 @@ public final class StudentWhitelister extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        PlayerProvider.checkForFloodgate();
         saveDefaultConfig();
         if (!BOOTSTRAP_SUCCESSFUL) {
             getLogger().warning("Plugin startup will not progress, please set up your config :)");

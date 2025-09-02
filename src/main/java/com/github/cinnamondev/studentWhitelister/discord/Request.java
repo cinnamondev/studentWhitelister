@@ -47,9 +47,9 @@ public record Request(Platform platform, User discordUser, Identifier identifier
 
         OfflinePlayer player();
 
-        static Mono<Platform.Bedrock> tryGetBedrock(Plugin plugin, String unparsedUsername, boolean isGamertag) {
-            return PlayerProvider.getBedrockPlayer(plugin, unparsedUsername, isGamertag)
-                    .map(player -> new Bedrock(player, unparsedUsername));
+        static Mono<Platform.Bedrock> tryGetBedrock(Plugin plugin, String gamertag) {
+            return PlayerProvider.getBedrockPlayer(plugin, gamertag)
+                    .map(player -> new Bedrock(player, gamertag));
         }
 
         static Mono<Platform.Java> tryGetJava(Plugin plugin, String unparsedUsername) {

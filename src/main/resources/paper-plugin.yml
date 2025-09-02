@@ -1,6 +1,12 @@
 name: studentWhitelister
 
-version: '1.0-SNAPSHOT'
+version: '1.1-SNAPSHOT'
 main: com.github.cinnamondev.studentWhitelister.StudentWhitelister
 api-version: '1.21'
 bootstrapper: com.github.cinnamondev.studentWhitelister.StudentWhitelisterBootstrap
+
+dependencies:
+  server:
+    # we will use floodgate to determine if a player is a bedrock player or not.
+    floodgate:
+      required: false
