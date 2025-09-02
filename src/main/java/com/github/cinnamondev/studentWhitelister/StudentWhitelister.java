@@ -1,0 +1,94 @@
+package com.github.cinnamondev.studentWhitelister;
+
+import com.github.cinnamondev.studentWhitelister.discord.Bot;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TranslatableComponent;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.translation.Translatable;
+import org.bukkit.ServerLinks;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
+
+import java.awt.*;
+import java.net.URI;
+import java.text.MessageFormat;
+
+public final class StudentWhitelister extends JavaPlugin {
+    protected PlayerListener whitelistWatcher;
+
+    public Bot bot;
+    // These values are initialized in the bootstrapper.
+    public static boolean BOOTSTRAP_SUCCESSFUL = false;
+    public static String STUDENT_UNION_LINK;
+    public static String DISCORD_INVITE;
+
+    public static Component SU_BTN;
+    public static Component DISCORD_BTN;
+    public static Component CANCELLATION_MESSAGE;
+    public static Component DIALOG_MESSAGE;
+
+    // called in bootstrapper
+    public static void initializeConfigItems(YamlConfiguration c) {
+        STUDENT_UNION_LINK = c.getString("urls.student-union", "https://su-not-specified.example.org");
+        DISCORD_INVITE = c.getString("urls.discord-url", "https://discord-not-specified.example.org");
+
+        SU_BTN = Component.text("Student Union")
+                .color(NamedTextColor.LIGHT_PURPLE)
+                .decorate(TextDecoration.UNDERLINED)
+                .clickEvent(ClickEvent.openUrl(STUDENT_UNION_LINK));
+        DISCORD_BTN = Component.text("Discord")
+                .color(NamedTextColor.AQUA)
+                .decorate(TextDecoration.UNDERLINED)
+                .clickEvent(ClickEvent.openUrl(DISCORD_INVITE));
+
+        DIALOG_MESSAGE = Component.text("We require everyone to register with the ").append(SU_BTN)
+                .append(Component.text(", and be a part of our ")).append(DISCORD_BTN)
+                .append(Component.text(" before playing. Please do the above (if you haven't already) then provide your " +
+                        "details below." + "This is only done for the purpose of verifying you are a member of our " +
+                        "society, and please be aware that we have to manually check these requests " +
+                        "(you should be notified when its done."));
+
+
+        CANCELLATION_MESSAGE = Component.text("Don't forget to join our ").append(DISCORD_BTN)
+                .append(Component.text(" and register with the ")).append(SU_BTN)
+                .append(Component.text("if you haven't already! See you soon!"));
+    }
+
+    @Override
+    public void onEnable() {
+        saveDefaultConfig();
+        if (!BOOTSTRAP_SUCCESSFUL) {
+            getLogger().warning("Plugin startup will not progress, please set up your config :)");
+            return;
+        }
+
+        this.whitelistWatcher = new PlayerListener(this);
+
+        try { // try and add discord/student links;
+            URI discordUri = URI.create(DISCORD_INVITE);
+            URI studentUri = URI.create(STUDENT_UNION_LINK);
+            getServer().getServerLinks().addLink(ServerLinks.Type.FORUMS, discordUri);
+            getServer().getServerLinks().addLink(ServerLinks.Type.WEBSITE, studentUri);
+        } catch (Exception e) { // not really critical we do this so just supress whatever
+            getLogger().warning(e.getMessage());
+        }
+
+        // i cant seem to get the bot to come back..
+        Bot.startBot(this).publishOn(Schedulers.parallel()).subscribe(b -> {
+            this.bot = b;
+            getServer().getScheduler().runTask(this,
+                    () -> getServer().getPluginManager().registerEvents(whitelistWatcher, this)
+            );
+        });
+    }
+
+    @Override
+    public void onDisable() {
+        // Plugin shutdown logic
+    }
+
+}

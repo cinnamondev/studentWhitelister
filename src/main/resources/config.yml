@@ -1,0 +1,15 @@
+discord:
+  secret: #1
+  guild: #1
+  channel: #1
+  role: #1
+  # should usually be false except for ONE thing. i dont want to deal with multi shard management so this works.
+  respond-to-messages: false
+
+# the language the discord bot should use
+bot-language: 'en_GB'
+bedrock-prefix: "."
+
+urls:
+  discord-server: 'https://google.com'
+  student-union: 'https://yahoo.com'
