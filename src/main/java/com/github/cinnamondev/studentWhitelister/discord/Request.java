@@ -41,10 +41,15 @@ public record Request(Platform platform, User discordUser, Identifier identifier
         }
     }
     public interface Platform {
-        record Java(OfflinePlayer player) implements Platform {}
+        record Java(OfflinePlayer player) implements Platform {
+            @Override public String usernameForDiscord() { return player.getName(); }
+        }
 
-        record Bedrock(OfflinePlayer player, String gamerTag) implements Platform {}
+        record Bedrock(OfflinePlayer player, String gamerTag) implements Platform {
+            @Override public String usernameForDiscord() { return gamerTag; }
+        }
 
+        String usernameForDiscord();
         OfflinePlayer player();
 
         static Mono<Platform.Bedrock> tryGetBedrock(Plugin plugin, String gamertag) {

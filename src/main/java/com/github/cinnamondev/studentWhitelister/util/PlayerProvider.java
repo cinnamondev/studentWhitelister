@@ -22,7 +22,7 @@ public class PlayerProvider {
     protected static Constructor<OfflinePlayer> OFFLINE_PLAYER_CONSTRUCTOR;
 
     public static boolean checkForFloodgate() {
-        if (HAS_FLOODGATE) { return true; } // dont bother witht his if we already know!
+        if (HAS_FLOODGATE) { return true; } // don't bother witht his if we already know!
         try { // check if we have floodgate
             //org.geysermc.floodgate.api.FloodgateApi;
             Class<?> clazz = Class.forName("org.geysermc.floodgate.api.FloodgateApi");
@@ -87,7 +87,6 @@ public class PlayerProvider {
     }
     /**
      * get bedrock player
-     * @param name username (interpreted as gamertag if "gamertag" is true, else it would be a java username i.e. ".ImShama")
      * @param gamertag whether to interpret username as gamertag
      * @return offline player corresponding to bedrock player
      */
@@ -96,7 +95,7 @@ public class PlayerProvider {
 
         String java = gamertagToMinecraft(gamertag);
         // try to get it from the server and if they dont have it then we will try to get it from elsewhere
-        return getExistingOfflinePlayer(p, java).switchIfEmpty(
+        return Mono.fromSupplier(() -> p.getServer().getOfflinePlayerIfCached(java)).switchIfEmpty(
                 Mono.fromFuture(FloodgateApi.getInstance().getUuidFor(gamertag))
                         .switchIfEmpty(Mono.error(new IllegalArgumentException("non existent player")))
                         .map(uuid -> createOfflinePlayer(java, uuid))

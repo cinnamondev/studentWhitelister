@@ -50,7 +50,7 @@ public class RequestMessage extends ReactiveEventAdapter {
                                 768,
                                 TextDisplay.of(769, (r.identifier() instanceof Request.Identifier.Email ? "Email: " : "Id: ") + r.identifier().toString()),
                                 TextDisplay.of(770, "Discord: " + r.discordUser().getMention()),
-                                TextDisplay.of(771, "Minecraft: " +  r.platform().player().getName()
+                                TextDisplay.of(771, "Minecraft: " +  r.platform().usernameForDiscord()
                                         + " (" + (r.platform() instanceof Request.Platform.Java ? "Java" : "Bedrock") + ")"
                                 )
 
