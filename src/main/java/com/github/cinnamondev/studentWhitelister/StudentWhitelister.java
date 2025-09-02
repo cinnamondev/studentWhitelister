@@ -3,20 +3,15 @@ package com.github.cinnamondev.studentWhitelister;
 import com.github.cinnamondev.studentWhitelister.discord.Bot;
 import com.github.cinnamondev.studentWhitelister.util.PlayerProvider;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.translation.Translatable;
 import org.bukkit.ServerLinks;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
-import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
-import java.awt.*;
 import java.net.URI;
-import java.text.MessageFormat;
 
 public final class StudentWhitelister extends JavaPlugin {
     private PlayerListener whitelistWatcher;
@@ -35,7 +30,7 @@ public final class StudentWhitelister extends JavaPlugin {
     // called in bootstrapper
     public static void initializeConfigItems(YamlConfiguration c) {
         STUDENT_UNION_LINK = c.getString("urls.student-union", "https://su-not-specified.example.org");
-        DISCORD_INVITE = c.getString("urls.discord-url", "https://discord-not-specified.example.org");
+        DISCORD_INVITE = c.getString("urls.discord-server", "https://discord-not-specified.example.org");
 
         SU_BTN = Component.text("Student Union")
                 .color(NamedTextColor.LIGHT_PURPLE)
@@ -51,12 +46,12 @@ public final class StudentWhitelister extends JavaPlugin {
                 .append(Component.text(" before playing. Please do the above (if you haven't already) then provide your " +
                         "details below." + "This is only done for the purpose of verifying you are a member of our " +
                         "society, and please be aware that we have to manually check these requests " +
-                        "(you should be notified when its done."));
+                        "(you should be notified when its done.)"));
 
 
         CANCELLATION_MESSAGE = Component.text("Don't forget to join our ").append(DISCORD_BTN)
-                .append(Component.text(" and register with the ")).append(SU_BTN)
-                .append(Component.text("if you haven't already! See you soon!"));
+                .append(Component.text(", and register with the ")).append(SU_BTN)
+                .append(Component.text(" if you haven't already! See you soon!"));
     }
 
     @Override
@@ -82,9 +77,12 @@ public final class StudentWhitelister extends JavaPlugin {
         // i cant seem to get the bot to come back..
         Bot.startBot(this).publishOn(Schedulers.parallel()).subscribe(b -> {
             this.bot = b;
-            getServer().getScheduler().runTask(this,
-                    () -> getServer().getPluginManager().registerEvents(whitelistWatcher, this)
-            );
+            // see config notes...
+            if (getConfig().getBoolean("enable-dialog", true)) {
+                getServer().getScheduler().runTask(this,
+                        () -> getServer().getPluginManager().registerEvents(whitelistWatcher, this)
+                );
+            }
         });
     }
 
