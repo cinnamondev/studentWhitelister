@@ -60,9 +60,9 @@ public class RequestMessage extends ReactiveEventAdapter {
                                 Button.danger("requestBotDeny", "Deny")),
                         ActionRow.of(
                                 SelectMenu.of("rejectWithReason",
-                                        SelectMenu.Option.of("Invalid email address", "invalid_email"),
-                                        SelectMenu.Option.of("Invalid student ID", "invalid_id"),
-                                        SelectMenu.Option.of("Unknown (ask in #help)", "unknown_error")
+                                        SelectMenu.Option.of(UserMessages.NOT_IN_STUDENT_UNION, UserMessages.SU_KEY),
+                                        SelectMenu.Option.of(UserMessages.NON_MANCUNIAN_EMAIL, UserMessages.EMAIL_KEY),
+                                        SelectMenu.Option.of(UserMessages.OTHER_REJECTION_REASON, UserMessages.OTHER_KEY)
                                 ).withPlaceholder("Other rejection reason")
                         )
                 );
@@ -96,7 +96,7 @@ public class RequestMessage extends ReactiveEventAdapter {
     }
 
     protected Mono<Void> editMessageRejected(Message message) {
-        return editMessageRejected(message, "Not registered (Generic)");
+        return editMessageRejected(message, UserMessages.NOT_IN_STUDENT_UNION);
     }
 
     protected Mono<Tuple2<Request.Platform, Member>> parseRequestMessage(Message message) {
@@ -117,7 +117,7 @@ public class RequestMessage extends ReactiveEventAdapter {
             return Mono.error(e);
         }
 
-        p.getLogger().info(minecraft);
+        //p.getLogger().info(minecraft);
 
         Mono<Tuple2<Request.Platform, Member>> request; {
             Mono<Request.Platform> platform;
@@ -153,7 +153,9 @@ public class RequestMessage extends ReactiveEventAdapter {
                         .flatMap(t -> {
                             p.getServer().getScheduler().runTask(p, () -> t.getT1().player().setWhitelisted(true));
                             return t.getT2().getPrivateChannel()
-                                    .flatMap(c -> c.createMessage(ACCEPTED_MESSAGE))
+                                    .flatMap(c -> c.createMessage(
+                                            UserMessages.acceptPrivateChannelResponse(t.getT1() instanceof Request.Platform.Java)
+                                    ))
                                     .onErrorMap(Exceptions.UnreachableUserException::new);
                         }))
                 //.doOnError(ex -> e.createFollowup("Failed: " +ex.getMessage()).withEphemeral(true))
@@ -162,17 +164,16 @@ public class RequestMessage extends ReactiveEventAdapter {
                 .onErrorResume(ex -> e.reply("Error :( : " + ex.getMessage()));
     }
 
-    private static final MessageCreateSpec GENERIC_REJECTED_MESSAGE = MessageCreateSpec.builder().content("Rejected due to not being registered with SU (Or Other)").build();
     protected Mono<Void> denyButton(ButtonInteractionEvent e) {
         if (e.getMessage().isEmpty()) { return Mono.error(new Exception("no message attributed?")); }
 
         return editMessageRejected(e.getMessage().get())
                 .then(parseRequestMessage(e.getMessage().get()))
                 .flatMap(request -> request.getT2().getPrivateChannel()
-                        .flatMap(c -> c.createMessage(GENERIC_REJECTED_MESSAGE))
+                        .flatMap(c -> c.createMessage(UserMessages.rejectPrivateChannelResponse(UserMessages.SU_KEY)))
                         .onErrorMap(Exceptions.UnreachableUserException::new)
                 )
-                .then(e.reply("Rejected (generic reason)!"))
+                .then(e.reply("Rejected (" + UserMessages.NOT_IN_STUDENT_UNION + ")!").withEphemeral(true))
                 .onErrorResume(Exceptions.UnreachableUserException.class, ex -> e.reply("Couldn't DM user!"))
                 .onErrorResume(ex -> e.reply("Error :( : " + ex.getMessage()));
     }
@@ -188,20 +189,19 @@ public class RequestMessage extends ReactiveEventAdapter {
 
     @Override
     public Publisher<?> onSelectMenuInteraction(SelectMenuInteractionEvent e) {
-        if (!e.getCustomId().equals("requestBotDenyWithReason")) { return Mono.empty(); }
+        if (!e.getCustomId().equals("rejectWithReason")) { return Mono.empty(); }
         if (e.getMessage().isEmpty()) { return Mono.error(new Exception("no message attributed?")); }
 
-        return editMessageRejected(e.getMessage().get())
+        String key = e.getValues().getFirst();
+        String rejectedReason = UserMessages.keyToReason(key);
+
+        return editMessageRejected(e.getMessage().get(), rejectedReason)
                 .then(parseRequestMessage(e.getMessage().get()))
                 .flatMap(request -> request.getT2().getPrivateChannel()
-                        .flatMap(c -> c.createMessage(
-                                MessageCreateSpec.builder()
-                                        .content("Rejected for following reason: " +  String.join(",", e.getValues()))
-                                        .build()
-                        ))
+                        .flatMap(c -> c.createMessage(UserMessages.rejectPrivateChannelResponse(key)))
                         .onErrorMap(Exceptions.UnreachableUserException::new)
                 )
-                .then(e.reply("Rejected (" + String.join(",", e.getValues()) +")!"))
+                .then(e.reply("Rejected (" + rejectedReason +")!").withEphemeral(true))
                 .onErrorResume(Exceptions.UnreachableUserException.class, ex -> e.reply("Couldn't DM user!"))
                 .onErrorResume(ex -> e.reply("Error :( : " + ex.getMessage()));
     }

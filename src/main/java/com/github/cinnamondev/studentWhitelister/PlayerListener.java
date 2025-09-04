@@ -79,16 +79,16 @@ public class PlayerListener implements Listener {
                             p.getLogger().warning(Request.requestInfo(completedRequest));
                             p.getLogger().warning(ex.getMessage());
                         });
-                p.getLogger().info(
-                        "user " + completedRequest.discordUser().getUsername()
-                                + " username" + completedRequest.platform().player().getName()
-                                + " identifier" + completedRequest.identifier().toString()
-                );
+                //p.getLogger().info(
+                //        "user " + completedRequest.discordUser().getUsername()
+                //                + " username" + completedRequest.platform().player().getName()
+                //                + " identifier" + completedRequest.identifier().toString()
+                //);
                 attempts = 5; // we should be 'done' and skip over the error dialog if all goes well.
                 // the moment anythign goes wrong, it goes into one of these catches, we will probably disconnect or
                 // show an alternative dialog to the user.
             } catch (TimeoutException ex) {
-                e.getConnection().disconnect(Component.translatable("minecraft.java.disconnect.out-of-attempts"));
+                e.getConnection().disconnect(Component.text("You are out of attempts!"));
                 return;
             } catch (ExecutionException ex) {
                 if (ex.getCause() instanceof Exceptions.CancelledDialogException) {

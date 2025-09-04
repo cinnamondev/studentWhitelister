@@ -6,11 +6,15 @@ discord:
   # should usually be false except for ONE thing. i dont want to deal with multi shard management so this works.
   respond-to-messages: false
 
-# this is a temporary option-while we wait for more plugins to come out the HorriblePlayerLoginEventHack hell.
-# for our server we are waiting on LuckPerms (status:?), EssentialsX (PR to be done), WorldGuard (stale PR?)
-enable-dialog: true
+  help-channel-id: 1
+  info-channel-id: 2
+
 bedrock-prefix: "." # this option will be ignored if floodgate is available.
 
 urls:
   discord-server: 'https://google.com'
   student-union: 'https://yahoo.com'
+
+server:
+  main-hostname: 'example.org'
+  bedrock-port: 19132

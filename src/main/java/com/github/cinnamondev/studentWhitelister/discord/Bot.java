@@ -14,8 +14,6 @@ import discord4j.gateway.intent.IntentSet;
 import org.bukkit.configuration.InvalidConfigurationException;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration;
-
 public class Bot {
     public GatewayDiscordClient client;
     public final Guild guild;
@@ -23,6 +21,12 @@ public class Bot {
     public Snowflake whitelistedRole = null;
     private final RequestMessage requestMessage;
     private final WhitelistCommand command;
+
+    public static String INFO_CHANNEL_STRING;
+    public static String HELP_CHANNEL_STRING;
+    public static String SERVER_HOSTNAME;
+    public static String SERVER_BEDROCK_PORT;
+
     protected Bot(StudentWhitelister p, GatewayDiscordClient client, Guild guild, TextChannel channel, Snowflake whitelistedRole) {
         this.client = client;
         this.guild = guild;
@@ -30,6 +34,14 @@ public class Bot {
         this.whitelistedRole = whitelistedRole;
         this.requestMessage = new RequestMessage(p, this);
         this.command = new WhitelistCommand(p);
+
+
+        INFO_CHANNEL_STRING = "<#" + p.getConfig()
+                .getString("discord.info-channel-id", "help channel not provided") + ">";
+        HELP_CHANNEL_STRING = "<#" + p.getConfig()
+                .getString("discord.help-channel-id", "help channel not provided") + ">";
+        SERVER_HOSTNAME = p.getConfig().getString("server.main-hostname", "not-provided.example.org");
+        SERVER_BEDROCK_PORT = p.getConfig().getString("server.main-bedrock-port", "port not provided.");
 
         if (p.getConfig().getBoolean("discord.respond-to-messages", false)) { // primary specific
             client.getRestClient().getApplicationId()

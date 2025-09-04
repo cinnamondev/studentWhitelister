@@ -77,12 +77,9 @@ public final class StudentWhitelister extends JavaPlugin {
         // i cant seem to get the bot to come back..
         Bot.startBot(this).publishOn(Schedulers.parallel()).subscribe(b -> {
             this.bot = b;
-            // see config notes...
-            if (getConfig().getBoolean("enable-dialog", true)) {
-                getServer().getScheduler().runTask(this,
-                        () -> getServer().getPluginManager().registerEvents(whitelistWatcher, this)
-                );
-            }
+            getServer().getScheduler().runTask(this,
+                    () -> getServer().getPluginManager().registerEvents(whitelistWatcher, this)
+            );
         });
     }
 
