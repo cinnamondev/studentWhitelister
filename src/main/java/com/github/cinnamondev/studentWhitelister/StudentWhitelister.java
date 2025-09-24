@@ -46,7 +46,7 @@ public final class StudentWhitelister extends JavaPlugin {
                 .append(Component.text(" before playing. Please do the above (if you haven't already) then provide your " +
                         "details below." + "This is only done for the purpose of verifying you are a member of our " +
                         "society, and please be aware that we have to manually check these requests " +
-                        "(you should be notified when its done.)"));
+                        "(you should be notified when its done, if you have already submitted once, please wait.)"));
 
 
         CANCELLATION_MESSAGE = Component.text("Don't forget to join our ").append(DISCORD_BTN)

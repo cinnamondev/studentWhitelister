@@ -3,13 +3,18 @@ package com.github.cinnamondev.studentWhitelister.discord;
 import com.github.cinnamondev.studentWhitelister.Exceptions;
 import com.github.cinnamondev.studentWhitelister.StudentWhitelister;
 import com.github.cinnamondev.studentWhitelister.util.PlayerProvider;
+import discord4j.common.util.Snowflake;
 import discord4j.core.event.ReactiveEventAdapter;
 import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
+import discord4j.core.object.command.ApplicationCommand;
 import discord4j.core.object.command.ApplicationCommandOption;
+import discord4j.core.object.entity.channel.TextChannel;
 import discord4j.discordjson.json.ApplicationCommandOptionChoiceData;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import discord4j.discordjson.json.ApplicationCommandRequest;
+import discord4j.rest.util.Permission;
 import org.reactivestreams.Publisher;
+import org.w3c.dom.Text;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -20,6 +25,22 @@ public class WhitelistCommand extends ReactiveEventAdapter {
         this.p = p;
     }
 
+    public static ApplicationCommandRequest modalButtonCommand = ApplicationCommandRequest.builder()
+            .name("button")
+            .description("push the button")
+            .defaultPermission(false)
+            .addOption(ApplicationCommandOptionData.builder()
+                    .name("channel")
+                    .description("channel to sened button")
+                    .type(ApplicationCommandOption.Type.CHANNEL.getValue())
+                    .required(true)
+                    .build()
+            ).build();
+
+    public static ApplicationCommandRequest modalCommand = ApplicationCommandRequest.builder()
+            .name("whitelistdialog")
+            .description("open whitelist modal")
+            .build();
     public static ApplicationCommandRequest command = ApplicationCommandRequest.builder()
             .name("whitelist")
             .description("get whitelisted")
@@ -53,6 +74,18 @@ public class WhitelistCommand extends ReactiveEventAdapter {
 
     @Override
     public Publisher<?> onChatInputInteraction(ChatInputInteractionEvent e) {
+        if (e.getCommandName().equals("button")) {
+            return e.getOptionAsChannel("channel")
+                    .flatMap(c -> c instanceof TextChannel ch ? Mono.just(ch) : Mono.error(new IllegalArgumentException("not a text channel")))
+                    .flatMap(c -> c.createMessage(Modal.message))
+                    .then(e.reply("Done!").withEphemeral(true))
+                    .onErrorResume(IllegalArgumentException.class, ex -> e.reply("not a text channel").withEphemeral(true))
+                    .onErrorResume(ex -> {
+                        p.getLogger().warning(ex.getMessage());
+                        return e.reply("check logs weird error! :(").withEphemeral(true);
+                    });
+        }
+        if (e.getCommandName().equals("whitelistdialog")) { return e.presentModal(Modal.modal);}
         if (!e.getCommandName().equals("whitelist")) { return Mono.empty(); }
 
         String identifierString;

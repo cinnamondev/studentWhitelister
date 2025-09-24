@@ -1,6 +1,7 @@
 package com.github.cinnamondev.studentWhitelister.util;
 
 import com.destroystokyo.paper.profile.PlayerProfile;
+import com.github.cinnamondev.studentWhitelister.Exceptions;
 import com.mojang.authlib.GameProfile;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -65,8 +66,12 @@ public class PlayerProvider {
     }
 
     protected static Mono<OfflinePlayer> getExistingOfflinePlayer(Plugin p, String username) {
-        return Mono.just(p.getServer().getOfflinePlayer(username))
-                .filter(player -> player.getUniqueId().version() != 3);
+        try {
+            return Mono.just(p.getServer().getOfflinePlayer(username))
+                    .filter(player -> player.getUniqueId().version() != 3);
+        } catch (Exception e) {
+            return Mono.error(new Exceptions.InvalidMinecraftUser(e));
+        }
     }
 
     /**
@@ -77,7 +82,7 @@ public class PlayerProvider {
      */
     public static Mono<OfflinePlayer> getJavaPlayer(Plugin p, String username) {
         return getExistingOfflinePlayer(p, username)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("non existent player")));
+                .switchIfEmpty(Mono.error(new Exceptions.InvalidMinecraftUser("non existent java player")));
     }
 
     protected static String gamertagToMinecraft(String gt) {
@@ -90,15 +95,20 @@ public class PlayerProvider {
      * @param gamertag whether to interpret username as gamertag
      * @return offline player corresponding to bedrock player
      */
-    public static Mono<OfflinePlayer> getBedrockPlayer(Plugin p, String gamertag) {
+    public static Mono<PlayerProfile> getBedrockPlayer(Plugin p, String gamertag) {
         if (!HAS_FLOODGATE) { return Mono.error(new UnsupportedOperationException("floodgate is unavailable.")); }
 
         String java = gamertagToMinecraft(gamertag);
         // try to get it from the server and if they dont have it then we will try to get it from elsewhere
-        return Mono.fromSupplier(() -> p.getServer().getOfflinePlayerIfCached(java)).switchIfEmpty(
-                Mono.fromFuture(FloodgateApi.getInstance().getUuidFor(gamertag))
-                        .switchIfEmpty(Mono.error(new IllegalArgumentException("non existent player")))
-                        .map(uuid -> createOfflinePlayer(java, uuid))
-        );
+        return Mono.fromSupplier(() -> p.getServer().getOfflinePlayerIfCached(java))
+                .map(offlinePlayer -> p.getServer().createProfile(offlinePlayer.getUniqueId(), java))
+                .switchIfEmpty(Mono.fromFuture(FloodgateApi.getInstance().getUuidFor(gamertag))
+                        .switchIfEmpty(Mono.error(new Exceptions.InvalidMinecraftUser("non existent bedrock player")))
+                        .map(uuid -> p.getServer().createProfile(uuid, java))
+                );
+    }
+
+    public static void whitelistProfile(PlayerProfile profile) {
+        profileToPlayer(profile).setWhitelisted(true);
     }
 }

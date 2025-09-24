@@ -1,5 +1,6 @@
 package com.github.cinnamondev.studentWhitelister.discord;
 
+import com.destroystokyo.paper.profile.PlayerProfile;
 import com.github.cinnamondev.studentWhitelister.Exceptions;
 import com.github.cinnamondev.studentWhitelister.util.PlayerProvider;
 import discord4j.core.object.entity.User;
@@ -41,16 +42,16 @@ public record Request(Platform platform, User discordUser, Identifier identifier
         }
     }
     public interface Platform {
-        record Java(OfflinePlayer player) implements Platform {
+        record Java(PlayerProfile player) implements Platform {
             @Override public String usernameForDiscord() { return player.getName(); }
         }
 
-        record Bedrock(OfflinePlayer player, String gamerTag) implements Platform {
+        record Bedrock(PlayerProfile player, String gamerTag) implements Platform {
             @Override public String usernameForDiscord() { return gamerTag; }
         }
 
         String usernameForDiscord();
-        OfflinePlayer player();
+        PlayerProfile player();
 
         static Mono<Platform.Bedrock> tryGetBedrock(Plugin plugin, String gamertag) {
             return PlayerProvider.getBedrockPlayer(plugin, gamertag)
@@ -59,6 +60,7 @@ public record Request(Platform platform, User discordUser, Identifier identifier
 
         static Mono<Platform.Java> tryGetJava(Plugin plugin, String unparsedUsername) {
             return PlayerProvider.getJavaPlayer(plugin, unparsedUsername)
+                    .flatMap(player -> Mono.fromFuture(player.getPlayerProfile().update()))
                     .map(Platform.Java::new);
         }
     }

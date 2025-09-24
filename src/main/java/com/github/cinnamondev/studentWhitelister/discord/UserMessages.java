@@ -6,6 +6,7 @@ import discord4j.core.object.component.Button;
 import discord4j.core.object.component.TextDisplay;
 import discord4j.core.object.entity.Message;
 import discord4j.core.spec.MessageCreateSpec;
+import org.w3c.dom.Text;
 
 import java.util.Collections;
 
@@ -26,21 +27,21 @@ public class UserMessages {
         };
     }
     public static MessageCreateSpec rejectPrivateChannelResponse(String key) {
-        return switch (key) {
-            case SU_KEY -> MessageCreateSpec.builder().build()
-                    .withFlags(Message.Flag.IS_COMPONENTS_V2)
-                    .withComponents(
-                            TextDisplay.of("""
-                                    You are not registered as a member with us on the SU!
-                                    Please go to our SU page and register as a member. If you are a member, please
-                                    double check that the details you have given us are correct. """),
-                            ActionRow.of(Button.link(StudentWhitelister.STUDENT_UNION_LINK, "Student Union Page"))
-                    );
-            case EMAIL_KEY -> MessageCreateSpec.builder()
-                    .content("You did not provide an email ending in @manchester.ac.uk :( If you are an associate member, seek help...")
-                    .build();
-            default -> MessageCreateSpec.builder().content("Unknown rejection reason! Please ask in the discord...").build();
+         TextDisplay content = switch (key) {
+             case SU_KEY -> TextDisplay.of("""
+                     You are not registered as a member with us on the SU!
+                     Please go to our SU page and register as a member. If you are a member, please
+                     double check that the details you have given us are correct. """);
+            case EMAIL_KEY -> TextDisplay.of("You did not provide an email ending in @manchester.ac.uk :( If you are an associate member, seek help...");
+            default -> TextDisplay.of("Unknown rejection reason! Please ask in the discord...");
         };
+
+        return MessageCreateSpec.builder().build()
+                .withFlags(Message.Flag.IS_COMPONENTS_V2)
+                .withComponents(
+                        content,
+                        ActionRow.of(Button.link(StudentWhitelister.STUDENT_UNION_LINK, "Student Union Page"), Button.primary("getWhitelistedModal", "Try again"))
+                );
     }
 
     public static MessageCreateSpec acceptPrivateChannelResponse(boolean isJava) {

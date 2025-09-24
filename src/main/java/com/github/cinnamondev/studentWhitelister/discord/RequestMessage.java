@@ -2,6 +2,8 @@ package com.github.cinnamondev.studentWhitelister.discord;
 
 import com.fasterxml.jackson.databind.ser.Serializers;
 import com.github.cinnamondev.studentWhitelister.Exceptions;
+import com.github.cinnamondev.studentWhitelister.StudentWhitelister;
+import com.github.cinnamondev.studentWhitelister.util.PlayerProvider;
 import discord4j.common.util.Snowflake;
 import discord4j.core.event.ReactiveEventAdapter;
 import discord4j.core.event.domain.interaction.ButtonInteractionEvent;
@@ -30,9 +32,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class RequestMessage extends ReactiveEventAdapter {
-    private final Plugin p;
+    private final StudentWhitelister p;
     private final Bot b;
-    public RequestMessage(Plugin p, Bot b) {
+    public RequestMessage(StudentWhitelister p, Bot b) {
         this.p = p;
         this.b = b;
     }
@@ -151,7 +153,8 @@ public class RequestMessage extends ReactiveEventAdapter {
                             } else { return Mono.just(t); }
                         })
                         .flatMap(t -> {
-                            p.getServer().getScheduler().runTask(p, () -> t.getT1().player().setWhitelisted(true));
+                            p.getServer().getScheduler().runTask(p, () -> PlayerProvider.whitelistProfile(t.getT1().player()));
+                            p.bot.removePendingMember(t.getT1().usernameForDiscord());
                             return t.getT2().getPrivateChannel()
                                     .flatMap(c -> c.createMessage(
                                             UserMessages.acceptPrivateChannelResponse(t.getT1() instanceof Request.Platform.Java)
@@ -169,6 +172,7 @@ public class RequestMessage extends ReactiveEventAdapter {
 
         return editMessageRejected(e.getMessage().get())
                 .then(parseRequestMessage(e.getMessage().get()))
+                .map(t -> { b.removePendingMember(t.getT1().usernameForDiscord()); return t;})
                 .flatMap(request -> request.getT2().getPrivateChannel()
                         .flatMap(c -> c.createMessage(UserMessages.rejectPrivateChannelResponse(UserMessages.SU_KEY)))
                         .onErrorMap(Exceptions.UnreachableUserException::new)
@@ -197,6 +201,7 @@ public class RequestMessage extends ReactiveEventAdapter {
 
         return editMessageRejected(e.getMessage().get(), rejectedReason)
                 .then(parseRequestMessage(e.getMessage().get()))
+                .map(t -> { b.removePendingMember(t.getT1().usernameForDiscord()); return t;})
                 .flatMap(request -> request.getT2().getPrivateChannel()
                         .flatMap(c -> c.createMessage(UserMessages.rejectPrivateChannelResponse(key)))
                         .onErrorMap(Exceptions.UnreachableUserException::new)

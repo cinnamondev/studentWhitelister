@@ -20,4 +20,9 @@ public final class Exceptions {
         public UnreachableUserException(Throwable ex) { super(ex); }
         public UnreachableUserException(String message) { super(message); }
     }
+    public static class InvalidMinecraftUser extends RuntimeException {
+        public InvalidMinecraftUser() { super(); }
+        public InvalidMinecraftUser(Throwable ex) { super(ex); }
+        public InvalidMinecraftUser(String message) { super(message); }
+    }
 }

@@ -18,11 +18,15 @@ import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Bed;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.geysermc.floodgate.api.FloodgateApi;
+import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,12 +47,15 @@ public class PlayerListener implements Listener {
     private final HashSet<UUID> toBeChecked = new HashSet<>();
     private final HashMap<PlayerCommonConnection, CompletableFuture<Request>> activePlayers = new HashMap<>();
     private final Dialog dialog = RegistryAccess.registryAccess().getRegistry(RegistryKey.DIALOG).get(Key.key("subot:whitelist_dialog"));
+
+
     @EventHandler
     public void playerConfiguration(AsyncPlayerConnectionConfigureEvent e) {
         if (!toBeChecked.contains(e.getConnection().getProfile().getId())) {
             e.getConnection().completeReconfiguration(); // player is whitelisted, we don't need to hold them up.
             return;
         } else { // locked in
+            e.getConnection().getProfile().complete(false);
             toBeChecked.remove(e.getConnection().getProfile().getId());
         }
 
@@ -129,8 +136,23 @@ public class PlayerListener implements Listener {
             if (activePlayers.size() >= 50) { return; } // limit them!
             // ban logic goes here
             // has PLAYER __retried__ N times in the last Y time period TODO
-            toBeChecked.add(e.getPlayerProfile().getId());
-            e.setWhitelisted(true);
+
+            // check if player is waiting and pre-emptively disconnect.
+            String username = e.getPlayerProfile().getName();
+            if (PlayerProvider.HAS_FLOODGATE) {
+                if (FloodgateApi.getInstance().isFloodgatePlayer(e.getPlayerProfile().getId())) {
+                    username = FloodgateApi.getInstance().getPlayer(e.getPlayerProfile().getId()).getUsername();
+                }
+            }
+
+            if (p.bot.isMemberPending(username)) {
+                e.kickMessage(
+                        Component.text("Your whitelist request is still pending. Please wait :) All our requests have to be manually handled. Thank you for your patience!")
+                );
+            } else {
+                toBeChecked.add(e.getPlayerProfile().getId());
+                e.setWhitelisted(true);
+            }
         }
         // TODO:
         // spam protection (check how long ago a connection last attempted whitelist process, if excessive or idle we will progressively increase the fail time...)
@@ -184,9 +206,9 @@ public class PlayerListener implements Listener {
                         // does it for you... SMH....
                         if (PlayerProvider.HAS_FLOODGATE && FloodgateApi.getInstance().isFloodgatePlayer(profile.getId())) {
                             var gamertag = FloodgateApi.getInstance().getPlayer(profile.getId()).getUsername();
-                            platform = new Request.Platform.Bedrock(PlayerProvider.profileToPlayer(profile), gamertag);
+                            platform = new Request.Platform.Bedrock(profile, gamertag);
                         } else {
-                            platform = new Request.Platform.Java(p.getServer().getOfflinePlayer(profile.getId()));
+                            platform = new Request.Platform.Java(profile);
                         }
                         return new Request(
                                 platform,

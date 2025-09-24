@@ -11,8 +11,12 @@ import discord4j.core.object.entity.channel.TextChannel;
 import discord4j.core.retriever.EntityRetrievalStrategy;
 import discord4j.gateway.intent.Intent;
 import discord4j.gateway.intent.IntentSet;
+import discord4j.rest.interaction.GuildCommandRegistrar;
 import org.bukkit.configuration.InvalidConfigurationException;
 import reactor.core.publisher.Mono;
+
+import java.util.HashSet;
+import java.util.List;
 
 public class Bot {
     public GatewayDiscordClient client;
@@ -21,12 +25,14 @@ public class Bot {
     public Snowflake whitelistedRole = null;
     private final RequestMessage requestMessage;
     private final WhitelistCommand command;
+    public final Modal modal;
 
     public static String INFO_CHANNEL_STRING;
     public static String HELP_CHANNEL_STRING;
     public static String SERVER_HOSTNAME;
     public static String SERVER_BEDROCK_PORT;
 
+    protected HashSet<String> currentPendingUsernames = new  HashSet<>();
     protected Bot(StudentWhitelister p, GatewayDiscordClient client, Guild guild, TextChannel channel, Snowflake whitelistedRole) {
         this.client = client;
         this.guild = guild;
@@ -34,7 +40,7 @@ public class Bot {
         this.whitelistedRole = whitelistedRole;
         this.requestMessage = new RequestMessage(p, this);
         this.command = new WhitelistCommand(p);
-
+        this.modal = new Modal(p);
 
         INFO_CHANNEL_STRING = "<#" + p.getConfig()
                 .getString("discord.info-channel-id", "help channel not provided") + ">";
@@ -44,20 +50,25 @@ public class Bot {
         SERVER_BEDROCK_PORT = p.getConfig().getString("server.main-bedrock-port", "port not provided.");
 
         if (p.getConfig().getBoolean("discord.respond-to-messages", false)) { // primary specific
-            client.getRestClient().getApplicationId()
-                    .flatMap(id -> client.getRestClient().getApplicationService().createGuildApplicationCommand(
-                            id,
-                            guild.getId().asLong(),
-                            WhitelistCommand.command
-                    ))
-                    .subscribe();
 
+            GuildCommandRegistrar.create(client.getRestClient(), List.of(
+                    WhitelistCommand.command,
+                    WhitelistCommand.modalCommand,
+                    WhitelistCommand.modalButtonCommand
+            )).registerCommands(guild.getId()).subscribe();
+
+            client.on(modal).subscribe(ok -> {}, ex -> p.getLogger().warning(ex.getMessage()));
             client.on(command).subscribe(ok -> {}, ex -> p.getLogger().warning(ex.getMessage()));
+            client.on(requestMessage).subscribe(ok -> {}, ex -> p.getLogger().warning(ex.getMessage()));
         }
-
-        client.on(requestMessage).subscribe(ok -> {}, ex -> p.getLogger().warning(ex.getMessage()));
     }
 
+    public boolean isMemberPending(String gameUsername) {
+        return currentPendingUsernames.contains(gameUsername);
+    }
+    public boolean removePendingMember(String gameUsername) {
+        return currentPendingUsernames.remove(gameUsername);
+    }
     public static Mono<Bot> startBot(StudentWhitelister p) {
         String secret = p.getConfig().getString("discord.secret");
         long guildId = p.getConfig().getLong("discord.guild", -1);
@@ -69,7 +80,7 @@ public class Bot {
         if (channelId == -1) {  return Mono.error(new InvalidConfigurationException("Bot channel is null or empty!")); }
         var gateway = DiscordClient.create(secret)
                 .gateway()
-                .setEnabledIntents(IntentSet.of(Intent.GUILD_MEMBERS))
+                .setEnabledIntents(IntentSet.of(Intent.GUILD_MEMBERS, Intent.MESSAGE_CONTENT))
                 .login()
                 .doOnError(ex -> p.getLogger().warning(ex.getMessage()))
                 .retry(2);
@@ -114,6 +125,7 @@ public class Bot {
     }
 
     public Mono<Void> makeWhitelistRequest(Request request) {
+        currentPendingUsernames.add(request.platform().usernameForDiscord());
         return channel.createMessage(RequestMessage.message(request)).then();
     }
 }
