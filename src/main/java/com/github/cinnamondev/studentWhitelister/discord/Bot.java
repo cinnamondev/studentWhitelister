@@ -63,6 +63,10 @@ public class Bot {
         }
     }
 
+    public Mono<Void> close() {
+        return client.logout();
+    }
+
     public boolean isMemberPending(String gameUsername) {
         return currentPendingUsernames.contains(gameUsername);
     }

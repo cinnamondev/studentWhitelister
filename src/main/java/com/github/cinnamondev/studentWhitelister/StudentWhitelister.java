@@ -2,13 +2,17 @@ package com.github.cinnamondev.studentWhitelister;
 
 import com.github.cinnamondev.studentWhitelister.discord.Bot;
 import com.github.cinnamondev.studentWhitelister.util.PlayerProvider;
+import io.papermc.paper.plugin.lifecycle.event.LifecycleEvent;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.ServerLinks;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.eclipse.sisu.bean.LifecycleManager;
 import reactor.core.scheduler.Schedulers;
 
 import java.net.URI;
@@ -16,6 +20,7 @@ import java.net.URI;
 public final class StudentWhitelister extends JavaPlugin {
     private PlayerListener whitelistWatcher;
 
+    private Command command;
     public Bot bot;
     // These values are initialized in the bootstrapper.
     public static boolean BOOTSTRAP_SUCCESSFUL = false;
@@ -28,7 +33,7 @@ public final class StudentWhitelister extends JavaPlugin {
     public static Component DIALOG_MESSAGE;
 
     // called in bootstrapper
-    public static void initializeConfigItems(YamlConfiguration c) {
+    public static void initializeConfigItems(FileConfiguration c) {
         STUDENT_UNION_LINK = c.getString("urls.student-union", "https://su-not-specified.example.org");
         DISCORD_INVITE = c.getString("urls.discord-server", "https://discord-not-specified.example.org");
 
@@ -64,6 +69,7 @@ public final class StudentWhitelister extends JavaPlugin {
         }
 
         this.whitelistWatcher = new PlayerListener(this);
+        this.command = new Command(this);
 
         try { // try and add discord/student links;
             URI discordUri = URI.create(DISCORD_INVITE);
@@ -74,6 +80,24 @@ public final class StudentWhitelister extends JavaPlugin {
             getLogger().warning(e.getMessage());
         }
 
+        startBot();
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, c -> {
+            c.registrar().register(command.COMMAND);
+        });
+    }
+
+    @Override
+    public void onDisable() {
+        // Plugin shutdown logic
+        bot.close().block();
+    }
+
+    public int reload() {
+        initializeConfigItems(getConfig());
+        bot.close().subscribe(ok -> startBot(), ex -> getLogger().warning("Failed to reload config!"));
+        return 1;
+    }
+    public void startBot() {
         // i cant seem to get the bot to come back..
         Bot.startBot(this).publishOn(Schedulers.parallel()).subscribe(b -> {
             this.bot = b;
@@ -81,11 +105,6 @@ public final class StudentWhitelister extends JavaPlugin {
                     () -> getServer().getPluginManager().registerEvents(whitelistWatcher, this)
             );
         });
-    }
-
-    @Override
-    public void onDisable() {
-        // Plugin shutdown logic
     }
 
 }

@@ -11,6 +11,8 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import reactor.core.publisher.Mono;
 
+import java.util.regex.Pattern;
+
 public record Request(Platform platform, User discordUser, Identifier identifier) {
     public static String requestInfo(Request request) {
         return "discord: " + request.discordUser.getUsername() + "\n" +
@@ -25,6 +27,9 @@ public record Request(Platform platform, User discordUser, Identifier identifier
         record Id(int id) implements Identifier {
             @Override public @NotNull String toString() { return String.valueOf(id); }
         }
+        record AssociateId(int id) implements Identifier {
+            @Override public @NotNull String toString() { return "ASSOC" + String.valueOf(id); }
+        }
 
         String toString();
         static Identifier parseFrom(String identifier) {
@@ -36,6 +41,13 @@ public record Request(Platform platform, User discordUser, Identifier identifier
                 return new Id(Integer.parseInt(identifier));
             } else if (EmailValidator.getInstance(false, false).isValid(identifier)) {
                 return new Email(identifier);
+            } else if (identifier.startsWith("ASSOC")) {
+                var substr = identifier.substring(5);
+                if (NumberUtils.isNumber(substr)) {
+                    return new AssociateId(Integer.parseInt(substr));
+                } else {
+                    throw new Exceptions.IdentifierValidationException("Identifier is malformed...");
+                }
             } else {
                 throw new Exceptions.IdentifierValidationException("Not a valid identifier: " + identifier);
             }

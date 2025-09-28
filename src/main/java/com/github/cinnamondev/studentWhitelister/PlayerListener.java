@@ -46,7 +46,7 @@ public class PlayerListener implements Listener {
 
     private final HashSet<UUID> toBeChecked = new HashSet<>();
     private final HashMap<PlayerCommonConnection, CompletableFuture<Request>> activePlayers = new HashMap<>();
-    private final Dialog dialog = RegistryAccess.registryAccess().getRegistry(RegistryKey.DIALOG).get(Key.key("subot:whitelist_dialog"));
+    private final Dialog dialog = RegistryAccess.registryAccess().getRegistry(RegistryKey.DIALOG).get(StudentWhitelisterBootstrap.DIALOG_KEY);
 
 
     @EventHandler
