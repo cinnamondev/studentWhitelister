@@ -13,6 +13,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.eclipse.sisu.bean.LifecycleManager;
+import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.net.URI;
@@ -80,9 +81,13 @@ public final class StudentWhitelister extends JavaPlugin {
             getLogger().warning(e.getMessage());
         }
 
-        startBot();
+        startBot().subscribe(ok -> {
+            getServer().getScheduler().runTask(this,
+                    () -> getServer().getPluginManager().registerEvents(whitelistWatcher, this)
+            );
+        });
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, c -> {
-            c.registrar().register(command.COMMAND);
+            c.registrar().register(Command.command(this));
         });
     }
 
@@ -92,19 +97,17 @@ public final class StudentWhitelister extends JavaPlugin {
         bot.close().block();
     }
 
-    public int reload() {
+    public Mono<Void> reload() {
         initializeConfigItems(getConfig());
-        bot.close().subscribe(ok -> startBot(), ex -> getLogger().warning("Failed to reload config!"));
-        return 1;
+        return bot.close().then(startBot());
     }
-    public void startBot() {
+
+    public Mono<Void> startBot() {
         // i cant seem to get the bot to come back..
-        Bot.startBot(this).publishOn(Schedulers.parallel()).subscribe(b -> {
-            this.bot = b;
-            getServer().getScheduler().runTask(this,
-                    () -> getServer().getPluginManager().registerEvents(whitelistWatcher, this)
-            );
-        });
+        return Bot.startBot(this)
+                .publishOn(Schedulers.parallel())
+                .doOnNext(b -> this.bot = b)
+                .then();
     }
 
 }
