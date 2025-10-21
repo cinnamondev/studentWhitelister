@@ -2,6 +2,7 @@ package com.github.cinnamondev.studentWhitelister.util;
 
 import com.destroystokyo.paper.profile.PlayerProfile;
 import com.github.cinnamondev.studentWhitelister.Exceptions;
+import com.github.cinnamondev.studentWhitelister.StudentWhitelister;
 import com.mojang.authlib.GameProfile;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -16,25 +17,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.UUID;
 
 public class PlayerProvider {
-    private static final Logger log = LoggerFactory.getLogger(PlayerProvider.class);
-    public static boolean HAS_FLOODGATE = false;
-    protected static String FLOODGATE_PREFIX = ".";
-    public static String getFloodgatePrefix() { return FLOODGATE_PREFIX; }
     protected static Constructor<OfflinePlayer> OFFLINE_PLAYER_CONSTRUCTOR;
 
-    public static boolean checkForFloodgate() {
-        if (HAS_FLOODGATE) { return true; } // don't bother witht his if we already know!
-        try { // check if we have floodgate
-            //org.geysermc.floodgate.api.FloodgateApi;
-            Class<?> clazz = Class.forName("org.geysermc.floodgate.api.FloodgateApi");
-            HAS_FLOODGATE = true;
-        } catch (ClassNotFoundException ignored) {
-            log.info("Floodgate not found");
-        } finally {
-            if (HAS_FLOODGATE) { FLOODGATE_PREFIX = FloodgateApi.getInstance().getPlayerPrefix(); }
-        }
-        return HAS_FLOODGATE;
-    }
     static {
         try { // get bukkit internal classes
             Class<?> serverClazz = Class.forName("org.bukkit.craftbukkit.CraftServer");
@@ -52,14 +36,6 @@ public class PlayerProvider {
         if (profile.getId() == null || profile.getName() == null) { throw new IllegalArgumentException("cannot be incomplete"); }
         try {
             return OFFLINE_PLAYER_CONSTRUCTOR.newInstance(Bukkit.getServer(), new GameProfile(profile.getId(), profile.getName()));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    protected static OfflinePlayer createOfflinePlayer(String username, UUID uuid) {
-        try {
-            return OFFLINE_PLAYER_CONSTRUCTOR.newInstance(Bukkit.getServer(), new GameProfile(uuid, username));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -87,8 +63,8 @@ public class PlayerProvider {
 
     protected static String gamertagToMinecraft(String gt) {
         String gamertag = gt.trim().replace(' ', '_');
-        int len = Math.min(gamertag.length(), 15);
-        return "." + gamertag.substring(0, len);
+        int len = Math.min(gamertag.length(), 16 - StudentWhitelister.getFloodgatePrefix().length());
+        return StudentWhitelister.getFloodgatePrefix() + gamertag.substring(0, len);
     }
     /**
      * get bedrock player
@@ -96,7 +72,7 @@ public class PlayerProvider {
      * @return offline player corresponding to bedrock player
      */
     public static Mono<PlayerProfile> getBedrockPlayer(Plugin p, String gamertag) {
-        if (!HAS_FLOODGATE) { return Mono.error(new UnsupportedOperationException("floodgate is unavailable.")); }
+        if (!StudentWhitelister.isFloodgateAvailable()) { return Mono.error(new UnsupportedOperationException("floodgate is unavailable.")); }
 
         String java = gamertagToMinecraft(gamertag);
         // try to get it from the server and if they dont have it then we will try to get it from elsewhere

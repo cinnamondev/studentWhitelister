@@ -1,6 +1,6 @@
 name: studentWhitelister
 
-version: '1.2'
+version: '1.21'
 main: com.github.cinnamondev.studentWhitelister.StudentWhitelister
 api-version: '1.21'
 bootstrapper: com.github.cinnamondev.studentWhitelister.StudentWhitelisterBootstrap

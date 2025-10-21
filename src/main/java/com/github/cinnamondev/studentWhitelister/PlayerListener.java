@@ -40,6 +40,11 @@ import java.util.function.Consumer;
 
 public class PlayerListener implements Listener {
     private final StudentWhitelister p;
+    private boolean ready = false;
+    public void ready(boolean ready) { this.ready = ready; }
+    public boolean ready() {
+        return ready;
+    }
     public PlayerListener(StudentWhitelister p) {
         this.p = p;
     }
@@ -59,8 +64,8 @@ public class PlayerListener implements Listener {
             toBeChecked.remove(e.getConnection().getProfile().getId());
         }
 
-        if (e.getConnection().getProfile().getName().startsWith(PlayerProvider.getFloodgatePrefix())) { // player is bedrock...
-            if (!PlayerProvider.HAS_FLOODGATE) { // weird state
+        if (e.getConnection().getProfile().getName().startsWith(StudentWhitelister.getFloodgatePrefix())) { // player is bedrock...
+            if (!StudentWhitelister.isFloodgateAvailable()) { // weird state
                 e.getConnection().disconnect(Component.text("bedrock player connected, but we dont have access to floodgate..."));
                 return;
             }
@@ -132,6 +137,8 @@ public class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void showFormIfUnwhitelisted(ProfileWhitelistVerifyEvent e) {
+        if (!ready) { return; }
+
         if (!e.isWhitelisted()) {
             if (activePlayers.size() >= 50) { return; } // limit them!
             // ban logic goes here
@@ -139,7 +146,7 @@ public class PlayerListener implements Listener {
 
             // check if player is waiting and pre-emptively disconnect.
             String username = e.getPlayerProfile().getName();
-            if (PlayerProvider.HAS_FLOODGATE) {
+            if (StudentWhitelister.isFloodgateAvailable()) {
                 if (FloodgateApi.getInstance().isFloodgatePlayer(e.getPlayerProfile().getId())) {
                     username = FloodgateApi.getInstance().getPlayer(e.getPlayerProfile().getId()).getUsername();
                 }
@@ -204,7 +211,7 @@ public class PlayerListener implements Listener {
                         Request.Platform platform;
                         // SO it turned out i don't have to do all the other stuff with BedrockForms! it just...
                         // does it for you... SMH....
-                        if (PlayerProvider.HAS_FLOODGATE && FloodgateApi.getInstance().isFloodgatePlayer(profile.getId())) {
+                        if (StudentWhitelister.isFloodgateAvailable() && FloodgateApi.getInstance().isFloodgatePlayer(profile.getId())) {
                             var gamertag = FloodgateApi.getInstance().getPlayer(profile.getId()).getUsername();
                             platform = new Request.Platform.Bedrock(profile, gamertag);
                         } else {

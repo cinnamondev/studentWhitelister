@@ -13,12 +13,18 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.eclipse.sisu.bean.LifecycleManager;
+import org.geysermc.floodgate.api.FloodgateApi;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.net.URI;
 
 public final class StudentWhitelister extends JavaPlugin {
+    private static boolean IS_FLOODGATE = false;
+    public static boolean isFloodgateAvailable() { return IS_FLOODGATE; }
+    private static String FLOODGATE_PREFIX = ".";
+    public static String getFloodgatePrefix() { return FLOODGATE_PREFIX; }
+
     private PlayerListener whitelistWatcher;
 
     private Command command;
@@ -62,7 +68,12 @@ public final class StudentWhitelister extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        PlayerProvider.checkForFloodgate();
+        IS_FLOODGATE = this.getServer().getPluginManager().isPluginEnabled("floodgate");
+        if (IS_FLOODGATE) {
+            getLogger().info("Floodgate is available! :)");
+            FLOODGATE_PREFIX = FloodgateApi.getInstance().getPlayerPrefix();
+        }
+
         saveDefaultConfig();
         if (!BOOTSTRAP_SUCCESSFUL) {
             getLogger().warning("Plugin startup will not progress, please set up your config :)");
@@ -81,33 +92,43 @@ public final class StudentWhitelister extends JavaPlugin {
             getLogger().warning(e.getMessage());
         }
 
-        startBot().subscribe(ok -> {
-            getServer().getScheduler().runTask(this,
-                    () -> getServer().getPluginManager().registerEvents(whitelistWatcher, this)
-            );
-        });
+        getLogger().info("starting watcher");
+        getServer().getScheduler().runTask(this,
+                () -> getServer().getPluginManager().registerEvents(whitelistWatcher, this)
+        );
+
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, c -> {
             c.registrar().register(Command.command(this));
         });
+
+        startBot().subscribe(_b -> {
+            this.whitelistWatcher.ready(true);
+            getLogger().info("bot is ready :)");
+        }, ex -> {
+            getLogger().severe(ex.getMessage());
+            getLogger().severe("Couldn't start discord bot, most features will be unavailable!");
+        });
+
     }
 
     @Override
     public void onDisable() {
         // Plugin shutdown logic
-        bot.close().block();
+        if (bot != null) {
+            bot.close().block();
+        }
     }
 
     public Mono<Void> reload() {
         initializeConfigItems(getConfig());
-        return bot.close().then(startBot());
+        return bot.close().then(startBot()).then();
     }
 
-    public Mono<Void> startBot() {
+    public Mono<Bot> startBot() {
         // i cant seem to get the bot to come back..
         return Bot.startBot(this)
                 .publishOn(Schedulers.parallel())
-                .doOnNext(b -> this.bot = b)
-                .then();
+                .doOnNext(b -> this.bot = b);
     }
 
 }
