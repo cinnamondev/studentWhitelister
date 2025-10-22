@@ -70,10 +70,8 @@ public record Request(Platform platform, User discordUser, Identifier identifier
                     .map(player -> new Bedrock(player, gamertag));
         }
 
-        static Mono<Platform.Java> tryGetJava(Plugin plugin, String unparsedUsername) {
-            return PlayerProvider.getJavaPlayer(plugin, unparsedUsername)
-                    .flatMap(player -> Mono.fromFuture(player.getPlayerProfile().update()))
-                    .map(Platform.Java::new);
+        static Mono<Platform.Java> tryGetJava(Plugin p, String unparsedUsername) {
+            return PlayerProvider.getExistingOfflinePlayer(p, unparsedUsername).map(Platform.Java::new);
         }
     }
     public static Mono<Request> makeWithDiscordUser(Bot bot, String discordUser, Platform platform, Identifier identifier) {

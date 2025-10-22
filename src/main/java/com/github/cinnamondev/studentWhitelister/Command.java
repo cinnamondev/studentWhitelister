@@ -12,12 +12,6 @@ import org.bukkit.entity.Player;
 import java.util.List;
 
 public class Command {
-    private final StudentWhitelister p;
-
-    public Command(StudentWhitelister p) {
-        this.p = p;
-    }
-
     public static LiteralCommandNode<CommandSourceStack> command(StudentWhitelister p) {
         return Commands.literal("whitelister")
                 .then(Commands.literal("reload")

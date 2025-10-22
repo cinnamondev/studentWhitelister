@@ -3,30 +3,37 @@ package com.github.cinnamondev.studentWhitelister.util;
 import com.destroystokyo.paper.profile.PlayerProfile;
 import com.github.cinnamondev.studentWhitelister.Exceptions;
 import com.github.cinnamondev.studentWhitelister.StudentWhitelister;
-import com.mojang.authlib.GameProfile;
+import net.minecraft.server.players.NameAndId;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
 import org.geysermc.floodgate.api.FloodgateApi;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
+import java.util.Optional;
 import java.util.UUID;
 
 public class PlayerProvider {
     protected static Constructor<OfflinePlayer> OFFLINE_PLAYER_CONSTRUCTOR;
-
+    protected static Constructor<NameAndId> NAME_AND_ID_CONSTRUCTOR;
     static {
         try { // get bukkit internal classes
-            Class<?> serverClazz = Class.forName("org.bukkit.craftbukkit.CraftServer");
-            Class<?> playerClazz = Class.forName("org.bukkit.craftbukkit.CraftOfflinePlayer");
+            Class<?> playerClazz = org.bukkit.craftbukkit.CraftOfflinePlayer.class;
+            Class<?> nameAndIdClazz = net.minecraft.server.players.NameAndId.class;
+            NAME_AND_ID_CONSTRUCTOR = (Constructor<NameAndId>) nameAndIdClazz
+                    .getDeclaredConstructor(
+                            UUID.class,
+                            String.class
+                    );
+            NAME_AND_ID_CONSTRUCTOR.setAccessible(true);
             OFFLINE_PLAYER_CONSTRUCTOR = (Constructor<OfflinePlayer>) playerClazz
-                    .getDeclaredConstructor(serverClazz, GameProfile.class);
+                    .getDeclaredConstructor(
+                            org.bukkit.craftbukkit.CraftServer.class,
+                            NameAndId.class
+                    );
             OFFLINE_PLAYER_CONSTRUCTOR.setAccessible(true);
-        } catch (ClassNotFoundException | NoSuchMethodException e) {
+        } catch (NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
     }
@@ -35,30 +42,21 @@ public class PlayerProvider {
     public static OfflinePlayer profileToPlayer(PlayerProfile profile) {
         if (profile.getId() == null || profile.getName() == null) { throw new IllegalArgumentException("cannot be incomplete"); }
         try {
-            return OFFLINE_PLAYER_CONSTRUCTOR.newInstance(Bukkit.getServer(), new GameProfile(profile.getId(), profile.getName()));
+            return OFFLINE_PLAYER_CONSTRUCTOR.newInstance(Bukkit.getServer(),
+                    NAME_AND_ID_CONSTRUCTOR.newInstance(profile.getName(), profile.getId()));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    protected static Mono<OfflinePlayer> getExistingOfflinePlayer(Plugin p, String username) {
-        try {
-            return Mono.just(p.getServer().getOfflinePlayer(username))
-                    .filter(player -> player.getUniqueId().version() != 3);
-        } catch (Exception e) {
-            return Mono.error(new Exceptions.InvalidMinecraftUser(e));
-        }
-    }
-
-    /**
-     * get java player, returning an error if failed to find them. (instead of returning an empty)
-     * @param p
-     * @param username
-     * @return offline player
-     */
-    public static Mono<OfflinePlayer> getJavaPlayer(Plugin p, String username) {
-        return getExistingOfflinePlayer(p, username)
-                .switchIfEmpty(Mono.error(new Exceptions.InvalidMinecraftUser("non existent java player")));
+    public static Mono<PlayerProfile> getExistingOfflinePlayer(Plugin p, String username) {
+        return Optional.ofNullable(p.getServer().getOfflinePlayerIfCached(username)) // this is more flexible than just createProfile as it will
+                .map(OfflinePlayer::getPlayerProfile) // pull from disk(?) for offlineplayers
+                .map(Mono::just).orElse(Mono.empty())
+                .switchIfEmpty(Mono.fromFuture(p.getServer().createProfile(username).update())
+                        .flatMap(profile -> profile.getId() != null ? Mono.just(profile)
+                                : Mono.error(new Exceptions.InvalidMinecraftUser("user " + username + " doesnt exist :("))
+                        ));
     }
 
     protected static String gamertagToMinecraft(String gt) {
@@ -76,9 +74,10 @@ public class PlayerProvider {
 
         String java = gamertagToMinecraft(gamertag);
         // try to get it from the server and if they dont have it then we will try to get it from elsewhere
-        return Mono.fromSupplier(() -> p.getServer().getOfflinePlayerIfCached(java))
-                .map(offlinePlayer -> p.getServer().createProfile(offlinePlayer.getUniqueId(), java))
-                .switchIfEmpty(Mono.fromFuture(FloodgateApi.getInstance().getUuidFor(gamertag))
+        return Optional.ofNullable(p.getServer().getOfflinePlayerIfCached(java))
+                .map(OfflinePlayer::getPlayerProfile)
+                .map(Mono::just).orElse(Mono.empty()) // turn it into a mono type
+                .switchIfEmpty(Mono.fromFuture(FloodgateApi.getInstance().getUuidFor(gamertag)) // if we dont emit a value get it from the far away lands.
                         .switchIfEmpty(Mono.error(new Exceptions.InvalidMinecraftUser("non existent bedrock player")))
                         .map(uuid -> p.getServer().createProfile(uuid, java))
                 );

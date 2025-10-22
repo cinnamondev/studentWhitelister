@@ -3,8 +3,6 @@ package com.github.cinnamondev.studentWhitelister;
 import com.destroystokyo.paper.event.profile.ProfileWhitelistVerifyEvent;
 import com.destroystokyo.paper.profile.PlayerProfile;
 import com.github.cinnamondev.studentWhitelister.discord.Request;
-import com.github.cinnamondev.studentWhitelister.util.PlayerProvider;
-import com.google.common.util.concurrent.Runnables;
 import io.papermc.paper.connection.PlayerCommonConnection;
 import io.papermc.paper.connection.PlayerConfigurationConnection;
 import io.papermc.paper.connection.PlayerGameConnection;
@@ -17,26 +15,18 @@ import io.papermc.paper.registry.RegistryKey;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
-import org.apache.commons.lang3.tuple.MutablePair;
-import org.bukkit.OfflinePlayer;
-import org.bukkit.block.Bed;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerMoveEvent;
 import org.geysermc.floodgate.api.FloodgateApi;
-import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 
 public class PlayerListener implements Listener {
     private final StudentWhitelister p;

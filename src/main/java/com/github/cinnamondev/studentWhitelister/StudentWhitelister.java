@@ -1,8 +1,6 @@
 package com.github.cinnamondev.studentWhitelister;
 
 import com.github.cinnamondev.studentWhitelister.discord.Bot;
-import com.github.cinnamondev.studentWhitelister.util.PlayerProvider;
-import io.papermc.paper.plugin.lifecycle.event.LifecycleEvent;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -10,9 +8,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.ServerLinks;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.eclipse.sisu.bean.LifecycleManager;
 import org.geysermc.floodgate.api.FloodgateApi;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -27,7 +23,6 @@ public final class StudentWhitelister extends JavaPlugin {
 
     private PlayerListener whitelistWatcher;
 
-    private Command command;
     public Bot bot;
     // These values are initialized in the bootstrapper.
     public static boolean BOOTSTRAP_SUCCESSFUL = false;
@@ -81,7 +76,6 @@ public final class StudentWhitelister extends JavaPlugin {
         }
 
         this.whitelistWatcher = new PlayerListener(this);
-        this.command = new Command(this);
 
         try { // try and add discord/student links;
             URI discordUri = URI.create(DISCORD_INVITE);
@@ -97,9 +91,9 @@ public final class StudentWhitelister extends JavaPlugin {
                 () -> getServer().getPluginManager().registerEvents(whitelistWatcher, this)
         );
 
-        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, c -> {
-            c.registrar().register(Command.command(this));
-        });
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, c ->
+            c.registrar().register(Command.command(this))
+        );
 
         startBot().subscribe(_b -> {
             this.whitelistWatcher.ready(true);
