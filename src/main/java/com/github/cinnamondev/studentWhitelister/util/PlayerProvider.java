@@ -3,37 +3,29 @@ package com.github.cinnamondev.studentWhitelister.util;
 import com.destroystokyo.paper.profile.PlayerProfile;
 import com.github.cinnamondev.studentWhitelister.Exceptions;
 import com.github.cinnamondev.studentWhitelister.StudentWhitelister;
-import net.minecraft.server.players.NameAndId;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
+import net.minecraft.server.players.NameAndId;
 import org.geysermc.floodgate.api.FloodgateApi;
 import reactor.core.publisher.Mono;
 
 import java.lang.reflect.Constructor;
 import java.util.Optional;
-import java.util.UUID;
 
 public class PlayerProvider {
     protected static Constructor<OfflinePlayer> OFFLINE_PLAYER_CONSTRUCTOR;
-    protected static Constructor<NameAndId> NAME_AND_ID_CONSTRUCTOR;
     static {
         try { // get bukkit internal classes
-            Class<?> playerClazz = org.bukkit.craftbukkit.CraftOfflinePlayer.class;
-            Class<?> nameAndIdClazz = net.minecraft.server.players.NameAndId.class;
-            NAME_AND_ID_CONSTRUCTOR = (Constructor<NameAndId>) nameAndIdClazz
-                    .getDeclaredConstructor(
-                            UUID.class,
-                            String.class
-                    );
-            NAME_AND_ID_CONSTRUCTOR.setAccessible(true);
+            Class<?> playerClazz = Class.forName("org.bukkit.craftbukkit.CraftOfflinePlayer");
+            //new NameAndId(UUID.randomUUID(), "");
             OFFLINE_PLAYER_CONSTRUCTOR = (Constructor<OfflinePlayer>) playerClazz
                     .getDeclaredConstructor(
                             org.bukkit.craftbukkit.CraftServer.class,
                             NameAndId.class
                     );
             OFFLINE_PLAYER_CONSTRUCTOR.setAccessible(true);
-        } catch (NoSuchMethodException e) {
+        } catch (ClassNotFoundException | NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
     }
@@ -42,8 +34,7 @@ public class PlayerProvider {
     public static OfflinePlayer profileToPlayer(PlayerProfile profile) {
         if (profile.getId() == null || profile.getName() == null) { throw new IllegalArgumentException("cannot be incomplete"); }
         try {
-            return OFFLINE_PLAYER_CONSTRUCTOR.newInstance(Bukkit.getServer(),
-                    NAME_AND_ID_CONSTRUCTOR.newInstance(profile.getName(), profile.getId()));
+            return OFFLINE_PLAYER_CONSTRUCTOR.newInstance(Bukkit.getServer(), new NameAndId(profile.getId(), profile.getName()));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
