@@ -8,12 +8,15 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
 import net.minecraft.server.players.NameAndId;
 import org.geysermc.floodgate.api.FloodgateApi;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
 import java.lang.reflect.Constructor;
 import java.util.Optional;
 
 public class PlayerProvider {
+    private static final Logger log = LoggerFactory.getLogger(PlayerProvider.class);
     protected static Constructor<OfflinePlayer> OFFLINE_PLAYER_CONSTRUCTOR;
     static {
         try { // get bukkit internal classes
@@ -26,6 +29,7 @@ public class PlayerProvider {
                     );
             OFFLINE_PLAYER_CONSTRUCTOR.setAccessible(true);
         } catch (ClassNotFoundException | NoSuchMethodException e) {
+            log.error(e.getMessage());
             throw new RuntimeException(e);
         }
     }

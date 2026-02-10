@@ -24,12 +24,12 @@ dependencies {
     implementation("com.discord4j:discord4j-core:3.3.0")
     implementation("commons-validator:commons-validator:1.10.0")
     compileOnly("org.geysermc.floodgate:api:2.2.4-SNAPSHOT")
-    paperweight.paperDevBundle("1.21.9-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle("1.21.11-R0.1-SNAPSHOT")
     //compileOnly("io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT")
 }
 
 group = "com.github.cinnamondev"
-version = "1.3"
+version = "1.31"
 description = "studentWhitelister"
 java {
         toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -51,6 +51,7 @@ tasks {
     }
     runServer {
         minecraftVersion("1.21.10")
+        runDirectory.set(layout.projectDirectory.dir("testserver/testserver"))
     }
 }
 
