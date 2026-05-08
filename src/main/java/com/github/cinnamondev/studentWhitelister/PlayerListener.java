@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+
 public class PlayerListener implements Listener {
     private final StudentWhitelister p;
     private boolean ready = false;
@@ -97,9 +98,9 @@ public class PlayerListener implements Listener {
                     e.getConnection().disconnect(StudentWhitelister.CANCELLATION_MESSAGE);
                     return;
                 } else {
-                    /// ////////////////////
-                    ///// BODGE ALERT!!
-                    /// ///////////////////
+                    /* ******************* */
+                    /*   BODGE ALERT!      */
+                    /* ******************* */
                     // generic handler retry dialog, will only let them go back to the normal track if completed succesfully.
                     activePlayers.put(e.getConnection(), new CompletableFuture<>());
                     e.getConnection().getAudience().showDialog(

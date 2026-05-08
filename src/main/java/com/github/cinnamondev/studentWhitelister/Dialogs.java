@@ -42,7 +42,7 @@ public class Dialogs {
                         .externalTitle(Component.text("Get whitelisted!"))
                         .afterAction(DialogBase.DialogAfterAction.CLOSE)
                         .body(List.of(
-                                DialogBody.item(ItemStack.of(Material.COMMAND_BLOCK)).showTooltip(false).showDecorations(false).build(),
+                                //DialogBody.item(ItemStack.of(Material.COMMAND_BLOCK)).showTooltip(false).showDecorations(false).build(),
                                 DialogBody.plainMessage(StudentWhitelister.DIALOG_MESSAGE, 320)
                         ))
                         .inputs(List.of(
@@ -58,11 +58,8 @@ public class Dialogs {
     public static final Key RETRY_BUTTON_KEY = Key.key("subot:user_input/try_again");
     /// build a dialog on call detailed with the error information
     public static Dialog userErrorDialog(Throwable t, boolean allowRetry) {
-        // https://stackoverflow.com/a/77159261 hatehatehatehatehatehatehatehatehate
         Component message;
-        if (t instanceof ExecutionException ex) {
-            t = ex.getCause();
-        }
+        if (t instanceof ExecutionException ex) { t = ex.getCause(); }
 
         if (t instanceof Exceptions.IdentifierValidationException) {
             message = Component.text("Identifier invalid, should be either a valid e-mail address or student ID number.");

@@ -37,13 +37,13 @@ public record Request(Platform platform, User discordUser, Identifier identifier
                 throw new Exceptions.IdentifierValidationException("empty identifier!");
             }
             identifier = identifier.strip();
-            if (NumberUtils.isNumber(identifier)) {
+            if (NumberUtils.isCreatable(identifier)) {
                 return new Id(Integer.parseInt(identifier));
             } else if (EmailValidator.getInstance(false, false).isValid(identifier)) {
                 return new Email(identifier);
             } else if (identifier.startsWith("ASSOC")) {
                 var substr = identifier.substring(5);
-                if (NumberUtils.isNumber(substr)) {
+                if (NumberUtils.isCreatable(substr)) {
                     return new AssociateId(Integer.parseInt(substr));
                 } else {
                     throw new Exceptions.IdentifierValidationException("Identifier is malformed...");
