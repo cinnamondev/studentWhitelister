@@ -148,27 +148,28 @@ public final class StudentWhitelister extends JavaPlugin {
 
     public boolean whitelistPlayer(UUID uuid) {
         boolean success = whitelistedPlayers.putIfAbsent(uuid, System.currentTimeMillis()) == null;
-        if (success) {
-            File file = this.getDataPath().resolve("whitelist.json").toFile();
-            if (!file.exists()) {
-                try {
-                    file.createNewFile();
-                } catch (IOException e) {
-                    getLogger().severe("failed to create custom whitelist :(");
-                }
-            }
-            try (FileWriter writer = new FileWriter(file)) {
-                Type typ = new TypeToken<Map<String, Long>>() {}.getType();
-                String json = gson.toJson(whitelistedPlayers, typ);
-                writer.write(json);
-            } catch (IOException e) {
-                getLogger().severe("some faliure writing to file");
-                getLogger().throwing("studentwhitelister", "whitelistplayer", e);
-            }
-        }
+        if (success) { saveWhitelist(); }
         return success;
     }
 
+    public void saveWhitelist() {
+        File file = this.getDataPath().resolve("whitelist.json").toFile();
+        if (!file.exists()) {
+            try {
+                file.createNewFile();
+            } catch (IOException e) {
+                getLogger().severe("failed to create custom whitelist :(");
+            }
+        }
+        try (FileWriter writer = new FileWriter(file)) {
+            Type typ = new TypeToken<Map<String, Long>>() {}.getType();
+            String json = gson.toJson(whitelistedPlayers, typ);
+            writer.write(json);
+        } catch (IOException e) {
+            getLogger().severe("some faliure writing to file");
+            getLogger().throwing("studentwhitelister", "whitelistplayer", e);
+        }
+    }
     public boolean isPlayerWhitelisted(UUID uuid, boolean removeIfInvalid) {
         Long timestamp = whitelistedPlayers.get(uuid);
         if (timestamp == null) { return false; }
@@ -176,6 +177,7 @@ public final class StudentWhitelister extends JavaPlugin {
         boolean isValid = TimeUnit.MILLISECONDS.toDays(currentTime-timestamp) <= 7;
         if (!isValid && removeIfInvalid) {
             whitelistedPlayers.remove(uuid);
+            saveWhitelist();
         }
         return isValid;
     }
