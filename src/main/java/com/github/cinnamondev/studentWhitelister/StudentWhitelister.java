@@ -1,6 +1,8 @@
 package com.github.cinnamondev.studentWhitelister;
 
 import com.github.cinnamondev.studentWhitelister.discord.Bot;
+import com.google.gson.Gson;
+import io.leangen.geantyref.TypeToken;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -13,9 +15,23 @@ import org.geysermc.floodgate.api.FloodgateApi;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.io.*;
+import java.lang.reflect.Type;
 import java.net.URI;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.Period;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public final class StudentWhitelister extends JavaPlugin {
+    private static Gson gson = new Gson();
+    private static HashMap<UUID, Long> whitelistedPlayers = new HashMap<>();
+
     private static boolean IS_FLOODGATE = false;
     public static boolean isFloodgateAvailable() { return IS_FLOODGATE; }
     private static String FLOODGATE_PREFIX = ".";
@@ -63,6 +79,23 @@ public final class StudentWhitelister extends JavaPlugin {
 
     @Override
     public void onEnable() {
+
+        File file = this.getDataPath().resolve("whitelist.json").toFile();
+        if (file.exists()) {
+            try (Reader reader = new FileReader(file)) {
+
+                Type typ = new TypeToken<Map<String, Long>>() {}.getType();
+                Map<String, Long> map = gson.fromJson(reader, typ);
+                map.forEach((str, timestamp) -> {
+                    UUID uuid = UUID.fromString(str);
+                    whitelistedPlayers.put(uuid, timestamp);
+                });
+            } catch (Exception e) {
+                getLogger().severe("failed to load whitelist.");
+                throw new RuntimeException(e);
+            }
+        }
+
         IS_FLOODGATE = this.getServer().getPluginManager().isPluginEnabled("floodgate");
         if (IS_FLOODGATE) {
             getLogger().info("Floodgate is available! :)");
@@ -113,6 +146,43 @@ public final class StudentWhitelister extends JavaPlugin {
         }
     }
 
+    public boolean whitelistPlayer(UUID uuid) {
+        boolean success = whitelistedPlayers.putIfAbsent(uuid, System.currentTimeMillis()) == null;
+        if (success) {
+            File file = this.getDataPath().resolve("whitelist.json").toFile();
+            if (!file.exists()) {
+                try {
+                    file.createNewFile();
+                } catch (IOException e) {
+                    getLogger().severe("failed to create custom whitelist :(");
+                }
+            }
+            try (FileWriter writer = new FileWriter(file)) {
+                Type typ = new TypeToken<Map<String, Long>>() {}.getType();
+                String json = gson.toJson(whitelistedPlayers, typ);
+                writer.write(json);
+            } catch (IOException e) {
+                getLogger().severe("some faliure writing to file");
+                getLogger().throwing("studentwhitelister", "whitelistplayer", e);
+            }
+        }
+        return success;
+    }
+
+    public boolean isPlayerWhitelisted(UUID uuid, boolean removeIfInvalid) {
+        Long timestamp = whitelistedPlayers.get(uuid);
+        if (timestamp == null) { return false; }
+        long currentTime = System.currentTimeMillis();
+        boolean isValid = TimeUnit.MILLISECONDS.toDays(currentTime-timestamp) <= 7;
+        if (!isValid && removeIfInvalid) {
+            whitelistedPlayers.remove(uuid);
+        }
+        return isValid;
+    }
+
+    public boolean isPlayerWhitelisted(UUID uuid) {
+        return isPlayerWhitelisted(uuid, true);
+    }
     public Mono<Void> reload() {
         initializeConfigItems(getConfig());
         return bot.close().then(startBot()).then();

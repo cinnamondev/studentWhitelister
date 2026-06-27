@@ -23,6 +23,7 @@ repositories {
 dependencies {
     implementation("com.discord4j:discord4j-core:3.3.2")
     implementation("commons-validator:commons-validator:1.10.0")
+    implementation("com.google.code.gson:gson:2.14.0")
     compileOnly("org.geysermc.floodgate:api:2.2.4-SNAPSHOT")
     paperweight.paperDevBundle("26.1.2.build.+")
     //compileOnly("io.papermc.paper:paper-api:26.1.2.build.+")

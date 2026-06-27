@@ -129,8 +129,7 @@ public class PlayerListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void showFormIfUnwhitelisted(ProfileWhitelistVerifyEvent e) {
         if (!ready) { return; }
-
-        if (!e.isWhitelisted()) {
+        if (!p.isPlayerWhitelisted(e.getPlayerProfile().getId()) && !e.isWhitelisted()) {
             if (activePlayers.size() >= 50) { return; } // limit them!
             // ban logic goes here
             // has PLAYER __retried__ N times in the last Y time period TODO
@@ -151,6 +150,10 @@ public class PlayerListener implements Listener {
                 toBeChecked.add(e.getPlayerProfile().getId());
                 e.setWhitelisted(true);
             }
+        }
+
+        if (p.isPlayerWhitelisted(e.getPlayerProfile().getId())) {
+            e.setWhitelisted(true);
         }
         // TODO:
         // spam protection (check how long ago a connection last attempted whitelist process, if excessive or idle we will progressively increase the fail time...)

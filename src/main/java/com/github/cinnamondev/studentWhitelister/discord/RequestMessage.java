@@ -153,7 +153,7 @@ public class RequestMessage extends ReactiveEventAdapter {
                             } else { return Mono.just(t); }
                         })
                         .flatMap(t -> {
-                            p.getServer().getScheduler().runTask(p, () -> PlayerProvider.whitelistProfile(t.getT1().player()));
+                            p.whitelistPlayer(t.getT1().player().getId());
                             p.bot.removePendingMember(t.getT1().usernameForDiscord());
                             return t.getT2().getPrivateChannel()
                                     .flatMap(c -> c.createMessage(
